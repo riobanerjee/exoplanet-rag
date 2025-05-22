@@ -1,7 +1,7 @@
 # LLM settings
 llm:
   provider: "ollama"
-  model_name: "llama3"
+  model_name: "gemma3:1b"
   temperature: 0.7
   max_tokens: 1024
 
@@ -25,6 +25,7 @@ data_ingestion:
   chunk_overlap: 50
   paper_dir: "data/papers"
   processed_dir: "data/processed"
+  max_pdf_size_mb: 5.0  # Skip PDFs larger than this size
 
 # RAG settings
 rag:

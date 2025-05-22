@@ -6,7 +6,7 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from langchain.prompts import PromptTemplate
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM
 from langchain.chains import LLMChain
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -34,7 +34,7 @@ def get_llm() -> Any:
     logger.info(f"Initializing LLM: {llm_config['model_name']}")
     
     try:
-        llm = Ollama(
+        llm = OllamaLLM(
             model=llm_config["model_name"],
             temperature=llm_config["temperature"],
             num_predict=llm_config["max_tokens"]

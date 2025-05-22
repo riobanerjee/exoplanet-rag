@@ -10,8 +10,8 @@ from tqdm import tqdm
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 
 from .data_loader import search_arxiv_papers, download_pdfs, get_available_papers
 from .utils import load_config, ensure_directories, time_function
@@ -44,7 +44,8 @@ def fetch_arxiv_papers() -> List[Dict[str, Any]]:
     )
     
     # Download PDFs
-    download_pdfs(papers, limit=data_config["download_limit"])
+    max_size_mb = data_config.get("max_pdf_size_mb", 10.0)
+    download_pdfs(papers, limit=data_config["download_limit"], max_size_mb=max_size_mb)
     
     return papers
 

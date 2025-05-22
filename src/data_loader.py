@@ -6,6 +6,7 @@ import os
 import json
 import time
 import logging
+import requests
 import arxiv
 import fitz  # PyMuPDF
 from typing import List, Dict, Any, Optional
@@ -83,13 +84,14 @@ def search_arxiv_papers(
     return papers
 
 
-def download_pdfs(papers: List[Dict[str, Any]], limit: Optional[int] = None) -> None:
+def download_pdfs(papers: List[Dict[str, Any]], limit: Optional[int] = None, max_size_mb: float = 10.0) -> None:
     """
     Download PDFs for the given papers.
     
     Args:
         papers: List of paper metadata
         limit: Optional limit on number of papers to download
+        max_size_mb: Maximum file size in MB (default: 10MB)
     """
     if limit is None:
         limit = data_config["download_limit"]
@@ -97,12 +99,15 @@ def download_pdfs(papers: List[Dict[str, Any]], limit: Optional[int] = None) -> 
     if limit:
         papers = papers[:limit]
         
-    logger.info(f"Downloading {len(papers)} PDFs")
+    logger.info(f"Downloading {len(papers)} PDFs (max size: {max_size_mb}MB)")
     
     # Use the ArXiv API directly for downloads
     client = arxiv.Client()
     
     os.makedirs(PAPERS_DIR, exist_ok=True)
+    
+    downloaded_count = 0
+    skipped_count = 0
     
     for paper in tqdm(papers, desc="Downloading PDFs"):
         arxiv_id = paper['arxiv_id']
@@ -110,17 +115,64 @@ def download_pdfs(papers: List[Dict[str, Any]], limit: Optional[int] = None) -> 
         
         # Skip if already downloaded
         if os.path.exists(pdf_path):
+            downloaded_count += 1
             continue
             
         try:
             search = arxiv.Search(id_list=[arxiv_id])
             paper_obj = next(client.results(search))
+            
+            # Check file size before downloading
+            if not _check_pdf_size(paper_obj.pdf_url, max_size_mb):
+                logger.warning(f"Skipping {arxiv_id}: file too large (>{max_size_mb}MB)")
+                skipped_count += 1
+                continue
+            
             paper_obj.download_pdf(dirpath=PAPERS_DIR, filename=f"{arxiv_id}.pdf")
+            downloaded_count += 1
             
             # Be nice to the ArXiv API - don't hammer it
             time.sleep(3)
         except Exception as e:
             logger.error(f"Error downloading {arxiv_id}: {e}")
+            skipped_count += 1
+    
+    logger.info(f"Download complete: {downloaded_count} downloaded, {skipped_count} skipped")
+
+
+def _check_pdf_size(pdf_url: str, max_size_mb: float) -> bool:
+    """
+    Check if PDF size is within the allowed limit without downloading the full file.
+    
+    Args:
+        pdf_url: URL of the PDF
+        max_size_mb: Maximum allowed size in MB
+        
+    Returns:
+        True if file size is acceptable, False otherwise
+    """
+    try:
+        # Send HEAD request to get content length
+        response = requests.head(pdf_url, timeout=10)
+        
+        if response.status_code == 200:
+            content_length = response.headers.get('content-length')
+            
+            if content_length:
+                file_size_mb = int(content_length) / (1024 * 1024)
+                logger.debug(f"PDF size: {file_size_mb:.2f}MB")
+                return file_size_mb <= max_size_mb
+            else:
+                # If no content-length header, allow download (rare case)
+                logger.warning("No content-length header found, allowing download")
+                return True
+        else:
+            logger.warning(f"Failed to check file size: HTTP {response.status_code}")
+            return True  # Allow download if check fails
+            
+    except Exception as e:
+        logger.warning(f"Error checking file size: {e}")
+        return True  # Allow download if check fails
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:

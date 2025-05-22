@@ -46,10 +46,10 @@ def check_ollama() -> bool:
     Returns:
         Boolean indicating availability
     """
-    from langchain_community.llms import Ollama
+    from langchain_ollama import OllamaLLM
     
     try:
-        llm = Ollama(model=config["llm"]["model_name"])
+        llm = OllamaLLM(model=config["llm"]["model_name"])
         llm.invoke("test")
         return True
     except Exception as e:
@@ -100,9 +100,6 @@ def process_query(query: str) -> None:
             
             # Add to history
             st.session_state.history.append(result)
-            
-            # Clear query input
-            st.session_state.query = ""
         except Exception as e:
             st.error(f"Error processing query: {e}")
 
@@ -153,13 +150,14 @@ with st.sidebar:
 st.title("🪐 Exoplanet RAG")
 
 # Query input
-query = st.text_area("Ask a question about exoplanets:", key="query")
+query = st.text_area("Ask a question about exoplanets:", placeholder="e.g., What are hot Jupiters?")
 
 col1, col2 = st.columns([1, 5])
 with col1:
     if st.button("Submit"):
         if query:
             process_query(query)
+            st.rerun()  # Refresh the page to clear the input
         else:
             st.warning("Please enter a query.")
 
@@ -176,26 +174,49 @@ if st.session_state.history:
             st.markdown(f"### A:")
             st.markdown(item['response'])
             
-            # Sources
-            with st.expander("View Sources"):
-                if "source_documents" in item and item["source_documents"]:
-                    for j, doc in enumerate(item["source_documents"]):
+            # Show retrieved papers
+            if "source_documents" in item and item["source_documents"]:
+                with st.expander(f"📚 Retrieved Papers ({len(item['source_documents'])} documents)"):
+                    # Get unique papers
+                    papers = {}
+                    for doc in item["source_documents"]:
+                        paper_id = doc.metadata.get("paper_id")
+                        if paper_id not in papers:
+                            papers[paper_id] = {
+                                "title": doc.metadata.get("title", "Unknown"),
+                                "authors": doc.metadata.get("authors", "Unknown"),
+                                "published": doc.metadata.get("published", "Unknown"),
+                                "chunks": []
+                            }
+                        
                         source_type = doc.metadata.get("source", "full_text")
-                        title = doc.metadata.get("title", "Unknown")
-                        authors = doc.metadata.get("authors", "Unknown")
+                        papers[paper_id]["chunks"].append({
+                            "type": source_type,
+                            "content": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content
+                        })
+                    
+                    # Display papers
+                    for i, (paper_id, paper_info) in enumerate(papers.items(), 1):
+                        authors = paper_info["authors"]
                         if isinstance(authors, list):
                             authors = ", ".join(authors)
-                        published = doc.metadata.get("published", "Unknown")
                         
-                        st.markdown(f"**Source {j+1}:** {title} by {authors} ({published})")
+                        st.markdown(f"**{i}. {paper_info['title']}**")
+                        st.markdown(f"*Authors:* {authors}")
+                        st.markdown(f"*Published:* {paper_info['published']} | *ArXiv ID:* {paper_id}")
                         
-                        if source_type == "abstract":
-                            st.markdown("*From abstract:*")
+                        # Show chunks from this paper
+                        for j, chunk in enumerate(paper_info["chunks"]):
+                            chunk_type = "📄 Abstract" if chunk["type"] == "abstract" else "📖 Full text"
+                            st.markdown(f"   {chunk_type}: {chunk['content']}")
                         
-                        st.text(doc.page_content[:300] + "..." if len(doc.page_content) > 300 else doc.page_content)
-                        st.markdown("---")
-                else:
-                    st.markdown("No source documents available.")
+                        if i < len(papers):  # Add separator between papers
+                            st.markdown("---")
+            
+            # Sources
+            with st.expander("View Context"):
+                st.markdown("**Full context used for generation:**")
+                st.text(item.get('context', 'No context available'))
 else:
     # First-time user instructions
     if st.session_state.rag_chain is None:
