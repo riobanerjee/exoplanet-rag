@@ -1,0 +1,37 @@
+# LLM settings
+llm:
+  provider: "ollama"
+  model_name: "llama3"
+  temperature: 0.7
+  max_tokens: 1024
+
+# Embedding settings
+embeddings:
+  provider: "sentence_transformers"
+  model_name: "all-MiniLM-L6-v2"
+
+# Vector store settings
+vector_store:
+  provider: "chroma"
+  collection_name: "exoplanet_papers"
+  persist_directory: "data/chroma_db"
+
+# Data ingestion settings
+data_ingestion:
+  arxiv_query: "cat:astro-ph.EP AND (ti:exoplanet OR abs:exoplanet OR ti:exoplanets OR abs:exoplanets)"
+  max_papers: 50
+  download_limit: 20
+  chunk_size: 500
+  chunk_overlap: 50
+  paper_dir: "data/papers"
+  processed_dir: "data/processed"
+
+# RAG settings
+rag:
+  n_results: 5
+  system_prompt: |
+    You are a helpful assistant specializing in astronomy and exoplanets. 
+    Your task is to answer questions based ONLY on the context provided. 
+    If the context doesn't contain the information needed, admit that you don't know.
+    Always cite specific papers when you use information from them.
+    Keep your answers concise and focused on the question.
