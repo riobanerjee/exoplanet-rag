@@ -10,24 +10,6 @@ A minimalist Retrieval Augmented Generation (RAG) system for querying scientific
 - Generate responses based on retrieved context
 - All components run locally - no API keys needed
 
-## Project Structure
-
-```
-langchain-exoplanet-rag/
-├── README.md                # Project documentation
-├── requirements.txt         # Dependencies
-├── .gitignore               # Git ignore file
-├── config.yml               # Configuration file
-├── app.py                   # Streamlit application
-└── src/                     # Source code
-    ├── __init__.py
-    ├── data_loader.py       # Functions for data collection
-    ├── ingest.py            # Data ingestion pipeline
-    ├── retriever.py         # Retrieval functions
-    ├── rag_chain.py         # LangChain RAG chain
-    └── utils.py             # Utility functions
-```
-
 ## Getting Started
 
 1. Clone this repository
