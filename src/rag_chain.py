@@ -62,7 +62,7 @@ Context information is below.
 
 {{context}}
 
-Given the context information and not prior knowledge, answer the query.
+Given the context information ONLY and not prior knowledge, answer the query.
 Query: {{query}}
 
 Answer:

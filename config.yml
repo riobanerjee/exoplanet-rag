@@ -20,12 +20,12 @@ vector_store:
 data_ingestion:
   arxiv_query: "cat:astro-ph.EP AND (ti:exoplanet OR abs:exoplanet OR ti:exoplanets OR abs:exoplanets)"
   max_papers: 50
-  download_limit: 20
+  download_limit: 10
   chunk_size: 500
   chunk_overlap: 50
   paper_dir: "data/papers"
   processed_dir: "data/processed"
-  max_pdf_size_mb: 5.0  # Skip PDFs larger than this size
+  max_pdf_size_mb: 10.0  # Skip PDFs larger than this size
 
 # RAG settings
 rag:

@@ -87,36 +87,97 @@ def load_and_split_documents() -> List[Any]:
             loader = PyPDFLoader(pdf_path)
             documents = loader.load()
             
+            # Skip if no documents loaded or if text is too short
+            if not documents:
+                logger.warning(f"No documents loaded from {pdf_path}")
+                continue
+                
+            # Check if we got meaningful content
+            total_text = "".join([doc.page_content for doc in documents])
+            if len(total_text.strip()) < 100:
+                logger.warning(f"Very little text extracted from {pdf_path}, skipping")
+                continue
+            
             # Add metadata to documents
             for doc in documents:
+                # Convert authors list to string for ChromaDB compatibility
+                authors = paper["authors"]
+                if isinstance(authors, list):
+                    authors_str = ", ".join(authors)
+                else:
+                    authors_str = str(authors)
+                
                 doc.metadata.update({
                     "paper_id": arxiv_id,
                     "title": paper["title"],
-                    "authors": paper["authors"],
+                    "authors": authors_str,  # Convert list to string
                     "published": paper["published"],
                     "source": "full_text"
                 })
             
             # Split documents
             chunks = text_splitter.split_documents(documents)
-            all_chunks.extend(chunks)
+            
+            # Only add chunks if we got some
+            if chunks:
+                all_chunks.extend(chunks)
+                logger.debug(f"Added {len(chunks)} chunks from {arxiv_id}")
+            else:
+                logger.warning(f"No chunks created from {pdf_path}")
             
             # Also add abstract as a separate document
-            abstract_doc = {
-                "page_content": paper["summary"],
-                "metadata": {
+            from langchain_core.documents import Document
+            
+            # Convert authors list to string for ChromaDB compatibility
+            authors = paper["authors"]
+            if isinstance(authors, list):
+                authors_str = ", ".join(authors)
+            else:
+                authors_str = str(authors)
+            
+            abstract_doc = Document(
+                page_content=paper["summary"],
+                metadata={
                     "paper_id": arxiv_id,
                     "title": paper["title"],
-                    "authors": paper["authors"],
+                    "authors": authors_str,  # Convert list to string
                     "published": paper["published"],
                     "source": "abstract"
                 }
-            }
+            )
             
             all_chunks.append(abstract_doc)
             
         except Exception as e:
             logger.error(f"Error processing {arxiv_id}: {e}")
+            
+            # Still try to add the abstract even if PDF processing fails
+            try:
+                from langchain_core.documents import Document
+                
+                # Convert authors list to string for ChromaDB compatibility
+                authors = paper["authors"]
+                if isinstance(authors, list):
+                    authors_str = ", ".join(authors)
+                else:
+                    authors_str = str(authors)
+                
+                abstract_doc = Document(
+                    page_content=paper["summary"],
+                    metadata={
+                        "paper_id": arxiv_id,
+                        "title": paper["title"],
+                        "authors": authors_str,  # Convert list to string
+                        "published": paper["published"],
+                        "source": "abstract"
+                    }
+                )
+                
+                all_chunks.append(abstract_doc)
+                logger.info(f"Added abstract for {arxiv_id} despite PDF processing failure")
+                
+            except Exception as e2:
+                logger.error(f"Failed to add abstract for {arxiv_id}: {e2}")
     
     logger.info(f"Created {len(all_chunks)} document chunks")
     return all_chunks
@@ -162,7 +223,7 @@ def create_vector_store(documents: List[Any], recreate: bool = False) -> Any:
         if vector_store._collection.count() == 0 and documents:
             logger.info("Vector store is empty, adding documents")
             vector_store.add_documents(documents)
-            vector_store.persist()
+            # Note: langchain-chroma auto-persists, no need to call persist()
     else:
         # Create new vector store
         if recreate and os.path.exists(persist_directory):
@@ -181,7 +242,7 @@ def create_vector_store(documents: List[Any], recreate: bool = False) -> Any:
             collection_name=collection_name,
             persist_directory=persist_directory
         )
-        vector_store.persist()
+        # Note: langchain-chroma auto-persists, no need to call persist()
     
     logger.info(f"Vector store has {vector_store._collection.count()} documents")
     return vector_store

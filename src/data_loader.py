@@ -11,6 +11,7 @@ import arxiv
 import fitz  # PyMuPDF
 from typing import List, Dict, Any, Optional
 from tqdm import tqdm
+import PyPDF2
 
 from .utils import load_config, ensure_directories
 
@@ -101,7 +102,6 @@ def download_pdfs(papers: List[Dict[str, Any]], limit: Optional[int] = None, max
         
     logger.info(f"Downloading {len(papers)} PDFs (max size: {max_size_mb}MB)")
     
-    # Use the ArXiv API directly for downloads
     client = arxiv.Client()
     
     os.makedirs(PAPERS_DIR, exist_ok=True)
@@ -128,7 +128,20 @@ def download_pdfs(papers: List[Dict[str, Any]], limit: Optional[int] = None, max
                 skipped_count += 1
                 continue
             
+            # Download the PDF
             paper_obj.download_pdf(dirpath=PAPERS_DIR, filename=f"{arxiv_id}.pdf")
+            
+            # Verify the downloaded file is actually a PDF
+            pdf_path = os.path.join(PAPERS_DIR, f"{arxiv_id}.pdf")
+            if os.path.exists(pdf_path):
+                with open(pdf_path, 'rb') as f:
+                    header = f.read(10)
+                    if not header.startswith(b'%PDF'):
+                        logger.warning(f"Downloaded file {arxiv_id}.pdf is not a valid PDF, removing")
+                        os.remove(pdf_path)
+                        skipped_count += 1
+                        continue
+            
             downloaded_count += 1
             
             # Be nice to the ArXiv API - don't hammer it
@@ -186,13 +199,36 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         Extracted text content
     """
     try:
-        doc = fitz.open(pdf_path)
-        text = ""
+        # First check if file is actually a PDF
+        with open(pdf_path, 'rb') as f:
+            header = f.read(10)
+            if not header.startswith(b'%PDF'):
+                logger.warning(f"File {pdf_path} does not appear to be a valid PDF (header: {header})")
+                return ""
         
-        for page in doc:
-            text += page.get_text()
+        # doc = fitz.open(pdf_path)
+        # text = ""
+        
+        # for page in doc:
+        #     page_text = page.get_text()
+        #     if page_text.strip():  # Only add non-empty pages
+        #         text += page_text + "\n"
+        
+        # doc.close()
+
+        # Using PyPDF2 instead of fitz
+        doc = PyPDF2.PdfReader(f)
+        text = ""
+        for page_num in range(len(doc.pages)):
+            page = doc.pages[page_num]
+            text = text + page.extract_text() + "\n"
+        
+        # Basic text validation
+        if len(text.strip()) < 100:
+            logger.warning(f"Very short text extracted from {pdf_path} ({len(text)} chars)")
             
         return text
+        
     except Exception as e:
         logger.error(f"Error extracting text from {pdf_path}: {e}")
         return ""
