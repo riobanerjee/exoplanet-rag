@@ -2,14 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system deps and Ollama
-RUN apt-get update && apt-get install -y curl && \
-    curl -fsSL https://ollama.com/install.sh | sh && \
-    rm -rf /var/lib/apt/lists/*
+# Install system deps (needed for some Python packages)
+RUN apt-get update && apt-get install -y \
+    curl \
+    gcc \
+    g++ \
+    && curl -fsSL https://ollama.com/install.sh | sh \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app
 COPY . .
