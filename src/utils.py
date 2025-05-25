@@ -1,11 +1,11 @@
 """
-Utility functions for the LangChain RAG application.
+Utility functions for the RAG application.
 """
 
 import os
 import yaml
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -13,15 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def load_config(config_path: str = "config.yml") -> Dict[str, Any]:
-    """
-    Load configuration from YAML file.
-    
-    Args:
-        config_path: Path to the config file
-        
-    Returns:
-        Dictionary with configuration
-    """
+    """Load configuration from YAML file."""
     logger.info(f"Loading config from {config_path}")
     
     try:
@@ -36,15 +28,9 @@ def load_config(config_path: str = "config.yml") -> Dict[str, Any]:
 
 
 def ensure_directories(config: Dict[str, Any]) -> None:
-    """
-    Ensure all required directories exist.
-    
-    Args:
-        config: Application configuration
-    """
+    """Ensure all required directories exist."""
     logger.info("Ensuring directories exist")
     
-    # Create data directories
     directories = [
         config["data_ingestion"]["paper_dir"],
         config["data_ingestion"]["processed_dir"],
@@ -53,43 +39,10 @@ def ensure_directories(config: Dict[str, Any]) -> None:
     
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
-        logger.info(f"Directory {directory} created or already exists")
-
-
-def time_function(func):
-    """
-    Decorator to time a function.
-    
-    Args:
-        func: Function to time
-        
-    Returns:
-        Wrapped function
-    """
-    import time
-    
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        elapsed_time = time.time() - start_time
-        
-        logger.info(f"Function {func.__name__} took {elapsed_time:.2f} seconds to execute")
-        
-        return result
-    
-    return wrapper
 
 
 def format_citation(metadata: Dict[str, Any]) -> str:
-    """
-    Format document metadata into a citation.
-    
-    Args:
-        metadata: Document metadata
-        
-    Returns:
-        Formatted citation
-    """
+    """Format document metadata into a citation."""
     title = metadata.get("title", "Unknown Title")
     authors = metadata.get("authors", "Unknown Authors")
     published = metadata.get("published", "Unknown Date")
@@ -98,20 +51,3 @@ def format_citation(metadata: Dict[str, Any]) -> str:
         authors = ", ".join(authors)
     
     return f"{authors}. ({published}). {title}."
-
-
-def truncate_text(text: str, max_length: int = 100) -> str:
-    """
-    Truncate text to a maximum length.
-    
-    Args:
-        text: Text to truncate
-        max_length: Maximum length
-        
-    Returns:
-        Truncated text
-    """
-    if len(text) <= max_length:
-        return text
-        
-    return text[:max_length] + "..."

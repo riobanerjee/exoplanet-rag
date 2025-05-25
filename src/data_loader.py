@@ -11,7 +11,6 @@ import arxiv
 import fitz  # PyMuPDF
 from typing import List, Dict, Any, Optional
 from tqdm import tqdm
-import PyPDF2
 
 from .utils import load_config, ensure_directories
 
@@ -102,6 +101,7 @@ def download_pdfs(papers: List[Dict[str, Any]], limit: Optional[int] = None, max
         
     logger.info(f"Downloading {len(papers)} PDFs (max size: {max_size_mb}MB)")
     
+    # Use the ArXiv API directly for downloads
     client = arxiv.Client()
     
     os.makedirs(PAPERS_DIR, exist_ok=True)
@@ -206,22 +206,15 @@ def extract_text_from_pdf(pdf_path: str) -> str:
                 logger.warning(f"File {pdf_path} does not appear to be a valid PDF (header: {header})")
                 return ""
         
-        # doc = fitz.open(pdf_path)
-        # text = ""
-        
-        # for page in doc:
-        #     page_text = page.get_text()
-        #     if page_text.strip():  # Only add non-empty pages
-        #         text += page_text + "\n"
-        
-        # doc.close()
-
-        # Using PyPDF2 instead of fitz
-        doc = PyPDF2.PdfReader(f)
+        doc = fitz.open(pdf_path)
         text = ""
-        for page_num in range(len(doc.pages)):
-            page = doc.pages[page_num]
-            text = text + page.extract_text() + "\n"
+        
+        for page in doc:
+            page_text = page.get_text()
+            if page_text.strip():  # Only add non-empty pages
+                text += page_text + "\n"
+        
+        doc.close()
         
         # Basic text validation
         if len(text.strip()) < 100:

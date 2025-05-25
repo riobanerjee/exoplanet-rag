@@ -1,63 +1,61 @@
-# Exoplanet RAG with LangChain
+# Exoplanet RAG
 
-A minimalist Retrieval Augmented Generation (RAG) system for querying scientific knowledge about exoplanets from ArXiv papers, built with LangChain.
+A simple Retrieval Augmented Generation (RAG) system for querying scientific knowledge about exoplanets from ArXiv papers, built with LangChain.
 
 ## Features
 
 - Fetch and process ArXiv papers about exoplanets
-- Create and store embeddings for efficient retrieval
-- Query the system using natural language
-- Generate responses based on retrieved context
-- All components run locally - no API keys needed
+- Create embeddings for efficient similarity search
+- Answer questions using retrieved context and local LLM
+- Simple web interface built with Streamlit
 
-## Getting Started
+## Quick Start
 
-1. Clone this repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Install Ollama from [https://ollama.com/](https://ollama.com/)
-4. Pull a model: `ollama pull llama3`
-5. Run the Streamlit app: `streamlit run app.py`
+1. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Install and setup Ollama**:
+   ```bash
+   # Install from https://ollama.com/
+   ollama pull gemma3:1b
+   ```
+
+3. **Run the application**:
+   ```bash
+   streamlit run app.py
+   ```
+
+4. **Initialize the system**: Click "Initialize Pipeline" in the sidebar
+
+5. **Ask questions**: Enter questions about exoplanets like "What are hot Jupiters?"
 
 ## Configuration
 
-The `config.yml` file contains all settings for the application:
+Edit `config.yml` to change models or parameters:
 
 ```yaml
-# LLM settings
 llm:
-  provider: "ollama"
-  model_name: "llama3"
-  temperature: 0.7
-
-# Embedding settings
+  model_name: "gemma3:1b"  # Change to your preferred model
 embeddings:
-  provider: "sentence_transformers"
   model_name: "all-MiniLM-L6-v2"
-
-# Vector store settings
-vector_store:
-  provider: "chroma"
-  collection_name: "exoplanet_papers"
-
-# Data ingestion settings
 data_ingestion:
-  arxiv_query: "cat:astro-ph.EP AND (ti:exoplanet OR abs:exoplanet OR ti:exoplanets OR abs:exoplanets)"
   max_papers: 50
   download_limit: 20
-  chunk_size: 500
-  chunk_overlap: 50
 ```
 
-## How it Works
+## Architecture
 
-1. **Data Ingestion**: The application fetches papers about exoplanets from ArXiv.
-2. **Document Processing**: Papers are split into chunks and embedded.
-3. **Retrieval**: When a query is received, relevant chunks are retrieved.
-4. **Response Generation**: A LLM generates a response based on the retrieved context.
+- **Data Ingestion**: Downloads and processes ArXiv papers
+- **Embeddings**: Creates vector representations using Sentence Transformers
+- **Vector Store**: Stores embeddings in ChromaDB for fast retrieval
+- **LLM**: Uses Ollama for local language model inference
+- **Interface**: Streamlit web app for user interaction
 
-## Usage
+## Example Questions
 
-After starting the Streamlit app, you can:
-1. Click "Initialize Pipeline" to set up the RAG system
-2. Enter your question about exoplanets in the query box
-3. View the generated response and its source documents
+- "What are hot Jupiters?"
+- "How are exoplanets detected?"
+- "What is the habitable zone?"
+- "What methods are used for exoplanet characterization?"

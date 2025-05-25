@@ -3,16 +3,15 @@ RAG chain implementation using LangChain.
 """
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 
 from langchain.prompts import PromptTemplate
 from langchain_ollama import OllamaLLM
-from langchain.chains import LLMChain
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 
 from .retriever import retrieve_documents, load_vector_store, format_retrieved_documents
-from .utils import load_config, time_function
+from .utils import load_config
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -25,12 +24,7 @@ rag_config = config["rag"]
 
 
 def get_llm() -> Any:
-    """
-    Get the LLM.
-    
-    Returns:
-        Ollama LLM
-    """
+    """Get the LLM."""
     logger.info(f"Initializing LLM: {llm_config['model_name']}")
     
     try:
@@ -47,12 +41,7 @@ def get_llm() -> Any:
 
 
 def get_rag_prompt() -> PromptTemplate:
-    """
-    Get the RAG prompt template.
-    
-    Returns:
-        PromptTemplate
-    """
+    """Get the RAG prompt template."""
     system_prompt = rag_config["system_prompt"]
     
     template = f"""
@@ -62,7 +51,7 @@ Context information is below.
 
 {{context}}
 
-Given the context information ONLY and not prior knowledge, answer the query.
+Given the context information and not prior knowledge, answer the query.
 Query: {{query}}
 
 Answer:
@@ -72,18 +61,9 @@ Answer:
 
 
 def create_rag_chain(vector_store: Optional[Any] = None) -> Any:
-    """
-    Create a RAG chain.
-    
-    Args:
-        vector_store: Optional vector store
-        
-    Returns:
-        RAG chain
-    """
+    """Create a RAG chain."""
     logger.info("Creating RAG chain")
     
-    # Load vector store if not provided
     if vector_store is None:
         vector_store = load_vector_store()
         
@@ -91,18 +71,13 @@ def create_rag_chain(vector_store: Optional[Any] = None) -> Any:
         logger.error("Vector store is not available")
         raise ValueError("Vector store is not available. Run the ingestion pipeline first.")
     
-    # Get LLM
     llm = get_llm()
-    
-    # Get prompt
     prompt = get_rag_prompt()
     
-    # Define retrieval function
     def retrieve_and_format(query: str) -> str:
         docs = retrieve_documents(query, vector_store=vector_store)
         return format_retrieved_documents(docs)
     
-    # Create RAG chain
     rag_chain = (
         {"context": retrieve_and_format, "query": RunnablePassthrough()}
         | prompt
@@ -113,26 +88,14 @@ def create_rag_chain(vector_store: Optional[Any] = None) -> Any:
     return rag_chain
 
 
-@time_function
 def process_query(
     query: str,
     vector_store: Optional[Any] = None,
     return_source_documents: bool = False
 ) -> Dict[str, Any]:
-    """
-    Process a query through the RAG chain.
-    
-    Args:
-        query: Query string
-        vector_store: Optional vector store
-        return_source_documents: Whether to return source documents
-        
-    Returns:
-        Dictionary with response and sources
-    """
+    """Process a query through the RAG chain."""
     logger.info(f"Processing query: {query}")
     
-    # Load vector store if not provided
     if vector_store is None:
         vector_store = load_vector_store()
         
@@ -145,14 +108,10 @@ def process_query(
         }
     
     try:
-        # Create chain or get LLM directly
         rag_chain = create_rag_chain(vector_store)
-        
-        # Retrieve documents
         docs = retrieve_documents(query, vector_store=vector_store)
         context = format_retrieved_documents(docs)
         
-        # Generate response
         response = rag_chain.invoke(query)
         
         result = {
@@ -176,21 +135,13 @@ def process_query(
 
 
 class RAGChain:
-    """
-    RAG Chain class for easier usage.
-    """
+    """RAG Chain class for easier usage."""
     
     def __init__(self, vector_store: Optional[Any] = None):
-        """
-        Initialize the RAG chain.
-        
-        Args:
-            vector_store: Optional vector store
-        """
+        """Initialize the RAG chain."""
         self.vector_store = vector_store if vector_store else load_vector_store()
         self.chain = None
         
-        # Initialize chain if vector store is available
         if self.vector_store is not None:
             self.chain = create_rag_chain(self.vector_store)
     
@@ -199,16 +150,7 @@ class RAGChain:
         query: str,
         return_source_documents: bool = False
     ) -> Dict[str, Any]:
-        """
-        Process a query.
-        
-        Args:
-            query: Query string
-            return_source_documents: Whether to return source documents
-            
-        Returns:
-            Dictionary with response and sources
-        """
+        """Process a query."""
         return process_query(
             query,
             vector_store=self.vector_store,

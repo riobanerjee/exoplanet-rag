@@ -1,20 +1,19 @@
 """
-Data ingestion pipeline for the LangChain RAG application.
+Data ingestion pipeline for the RAG application.
 """
 
 import os
-import json
 import logging
-from typing import List, Dict, Any, Optional
-from tqdm import tqdm
+from typing import List, Any
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+from langchain_core.documents import Document
 
 from .data_loader import search_arxiv_papers, download_pdfs, get_available_papers
-from .utils import load_config, ensure_directories, time_function
+from .utils import load_config, ensure_directories
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,47 +26,31 @@ embedding_config = config["embeddings"]
 vector_store_config = config["vector_store"]
 
 
-@time_function
-def fetch_arxiv_papers() -> List[Dict[str, Any]]:
-    """
-    Fetch papers from ArXiv.
-    
-    Returns:
-        List of paper metadata
-    """
+def fetch_arxiv_papers() -> List[Any]:
+    """Fetch papers from ArXiv."""
     logger.info("Fetching papers from ArXiv")
     
-    # Search for papers
     papers = search_arxiv_papers(
         query=data_config["arxiv_query"],
         max_results=data_config["max_papers"]
     )
     
-    # Download PDFs
     max_size_mb = data_config.get("max_pdf_size_mb", 10.0)
     download_pdfs(papers, limit=data_config["download_limit"], max_size_mb=max_size_mb)
     
     return papers
 
 
-@time_function
 def load_and_split_documents() -> List[Any]:
-    """
-    Load and split documents into chunks.
-    
-    Returns:
-        List of document chunks
-    """
+    """Load and split documents into chunks."""
     logger.info("Loading and splitting documents")
     
-    # Get available papers
     available_papers = get_available_papers()
     
     if not available_papers:
         logger.error("No papers available. Fetch papers first.")
         return []
     
-    # Configure text splitter
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=data_config["chunk_size"],
         chunk_overlap=data_config["chunk_overlap"],
@@ -75,12 +58,18 @@ def load_and_split_documents() -> List[Any]:
         is_separator_regex=False
     )
     
-    # Load and split documents
     all_chunks = []
     
-    for paper in tqdm(available_papers, desc="Processing papers"):
+    for paper in available_papers:
         arxiv_id = paper["arxiv_id"]
         pdf_path = os.path.join(data_config["paper_dir"], f"{arxiv_id}.pdf")
+        
+        # Convert authors list to string for ChromaDB compatibility
+        authors = paper["authors"]
+        if isinstance(authors, list):
+            authors_str = ", ".join(authors)
+        else:
+            authors_str = str(authors)
         
         try:
             # Load PDF
@@ -100,17 +89,10 @@ def load_and_split_documents() -> List[Any]:
             
             # Add metadata to documents
             for doc in documents:
-                # Convert authors list to string for ChromaDB compatibility
-                authors = paper["authors"]
-                if isinstance(authors, list):
-                    authors_str = ", ".join(authors)
-                else:
-                    authors_str = str(authors)
-                
                 doc.metadata.update({
                     "paper_id": arxiv_id,
                     "title": paper["title"],
-                    "authors": authors_str,  # Convert list to string
+                    "authors": authors_str,
                     "published": paper["published"],
                     "source": "full_text"
                 })
@@ -118,29 +100,23 @@ def load_and_split_documents() -> List[Any]:
             # Split documents
             chunks = text_splitter.split_documents(documents)
             
-            # Only add chunks if we got some
             if chunks:
                 all_chunks.extend(chunks)
                 logger.debug(f"Added {len(chunks)} chunks from {arxiv_id}")
             else:
                 logger.warning(f"No chunks created from {pdf_path}")
             
-            # Also add abstract as a separate document
-            from langchain_core.documents import Document
-            
-            # Convert authors list to string for ChromaDB compatibility
-            authors = paper["authors"]
-            if isinstance(authors, list):
-                authors_str = ", ".join(authors)
-            else:
-                authors_str = str(authors)
-            
+        except Exception as e:
+            logger.error(f"Error processing {arxiv_id}: {e}")
+        
+        # Always add abstract as a separate document
+        try:
             abstract_doc = Document(
                 page_content=paper["summary"],
                 metadata={
                     "paper_id": arxiv_id,
                     "title": paper["title"],
-                    "authors": authors_str,  # Convert list to string
+                    "authors": authors_str,
                     "published": paper["published"],
                     "source": "abstract"
                 }
@@ -149,55 +125,16 @@ def load_and_split_documents() -> List[Any]:
             all_chunks.append(abstract_doc)
             
         except Exception as e:
-            logger.error(f"Error processing {arxiv_id}: {e}")
-            
-            # Still try to add the abstract even if PDF processing fails
-            try:
-                from langchain_core.documents import Document
-                
-                # Convert authors list to string for ChromaDB compatibility
-                authors = paper["authors"]
-                if isinstance(authors, list):
-                    authors_str = ", ".join(authors)
-                else:
-                    authors_str = str(authors)
-                
-                abstract_doc = Document(
-                    page_content=paper["summary"],
-                    metadata={
-                        "paper_id": arxiv_id,
-                        "title": paper["title"],
-                        "authors": authors_str,  # Convert list to string
-                        "published": paper["published"],
-                        "source": "abstract"
-                    }
-                )
-                
-                all_chunks.append(abstract_doc)
-                logger.info(f"Added abstract for {arxiv_id} despite PDF processing failure")
-                
-            except Exception as e2:
-                logger.error(f"Failed to add abstract for {arxiv_id}: {e2}")
+            logger.error(f"Failed to add abstract for {arxiv_id}: {e}")
     
     logger.info(f"Created {len(all_chunks)} document chunks")
     return all_chunks
 
 
-@time_function
 def create_vector_store(documents: List[Any], recreate: bool = False) -> Any:
-    """
-    Create a vector store from documents.
-    
-    Args:
-        documents: List of document chunks
-        recreate: Whether to recreate the vector store
-        
-    Returns:
-        Chroma vector store
-    """
+    """Create a vector store from documents."""
     logger.info("Creating vector store")
     
-    # Configure embedding model
     embedding_model_name = embedding_config["model_name"]
     embeddings = HuggingFaceEmbeddings(
         model_name=embedding_model_name,
@@ -205,13 +142,11 @@ def create_vector_store(documents: List[Any], recreate: bool = False) -> Any:
         encode_kwargs={'normalize_embeddings': True}
     )
     
-    # Configure vector store
     persist_directory = vector_store_config["persist_directory"]
     collection_name = vector_store_config["collection_name"]
     
     # Check if vector store exists
     if os.path.exists(persist_directory) and not recreate:
-        # Load existing vector store
         logger.info(f"Loading existing vector store from {persist_directory}")
         vector_store = Chroma(
             collection_name=collection_name,
@@ -219,13 +154,10 @@ def create_vector_store(documents: List[Any], recreate: bool = False) -> Any:
             persist_directory=persist_directory
         )
         
-        # If vector store is empty, we should add documents
         if vector_store._collection.count() == 0 and documents:
             logger.info("Vector store is empty, adding documents")
             vector_store.add_documents(documents)
-            # Note: langchain-chroma auto-persists, no need to call persist()
     else:
-        # Create new vector store
         if recreate and os.path.exists(persist_directory):
             logger.info(f"Recreating vector store at {persist_directory}")
             import shutil
@@ -242,47 +174,27 @@ def create_vector_store(documents: List[Any], recreate: bool = False) -> Any:
             collection_name=collection_name,
             persist_directory=persist_directory
         )
-        # Note: langchain-chroma auto-persists, no need to call persist()
     
     logger.info(f"Vector store has {vector_store._collection.count()} documents")
     return vector_store
 
 
-@time_function
 def run_ingestion_pipeline(force_rebuild: bool = False) -> Any:
-    """
-    Run the complete ingestion pipeline.
-    
-    Args:
-        force_rebuild: Whether to force rebuilding the vector store
-        
-    Returns:
-        Chroma vector store
-    """
+    """Run the complete ingestion pipeline."""
     logger.info("Starting ingestion pipeline")
     
-    # Ensure directories exist
     ensure_directories(config)
     
-    # Check if we already have a vector store
     persist_directory = vector_store_config["persist_directory"]
     vector_store_exists = os.path.exists(persist_directory) and not force_rebuild
     
-    # Fetch papers if necessary or requested
     if not vector_store_exists or force_rebuild:
         fetch_arxiv_papers()
-    
-    # Load and split documents if necessary or requested
-    documents = []
-    if not vector_store_exists or force_rebuild:
         documents = load_and_split_documents()
+    else:
+        documents = []
     
-    # Create vector store
     vector_store = create_vector_store(documents, recreate=force_rebuild)
     
     logger.info("Ingestion pipeline complete")
     return vector_store
-
-
-if __name__ == "__main__":
-    run_ingestion_pipeline()
