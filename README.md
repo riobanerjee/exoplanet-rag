@@ -1,13 +1,15 @@
 # Exoplanet RAG
 
-A simple Retrieval Augmented Generation (RAG) system for querying scientific knowledge about exoplanets from ArXiv papers, built with LangChain.
+A simple Retrieval Augmented Generation (RAG) system for querying exoplanets papers ArXiv papers, built with LangChain. This is a framework for RAG, that demonstrates the concept of a RAG in this field with a small document database. A larger document database and a better LLM would provide improved results.
+
+Deployed at 
 
 ## Features
 
 - Fetch and process ArXiv papers about exoplanets
 - Create embeddings for efficient similarity search
 - Answer questions using retrieved context and local LLM
-- Simple web interface built with Streamlit
+- Web interface built with Streamlit
 
 ## Quick Start
 
@@ -29,7 +31,7 @@ A simple Retrieval Augmented Generation (RAG) system for querying scientific kno
 
 4. **Initialize the system**: Click "Initialize Pipeline" in the sidebar
 
-5. **Ask questions**: Enter questions about exoplanets like "What are hot Jupiters?"
+5. **Ask questions**: Enter questions about exoplanets like "What are sub Neptunes?"
 
 ## Configuration
 
@@ -55,7 +57,7 @@ data_ingestion:
 
 ## Example Questions
 
-- "What are hot Jupiters?"
+- "What are sub Neptunes?"
 - "How are exoplanets detected?"
 - "What is the habitable zone?"
-- "What methods are used for exoplanet characterization?"
+- "What is an atmospheric retrieval?"
