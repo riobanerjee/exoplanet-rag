@@ -1,0 +1,30 @@
+# Git files
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Testing files
+tests/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Development files
+.vscode/
+.idea/
+*.md
+Makefile
+
+# Local data (created at runtime)
+data/
+
+# CI/CD files
+.github/
+
+# Logs and temp files
+*.log
+.env
