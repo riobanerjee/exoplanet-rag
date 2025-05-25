@@ -5,7 +5,7 @@ ollama serve &
 sleep 10
 
 # Pull model
-ollama pull gemma2:2b
+ollama pull gemma3:1b
 
 # Start app
-streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+streamlit run app.py --server.port=8080 --server.address=0.0.0.0
