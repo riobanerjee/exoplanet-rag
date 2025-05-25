@@ -105,8 +105,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### About")
     st.markdown(
-        "This RAG system uses ArXiv papers about exoplanets to answer your questions. "
-        "It combines document retrieval with local LLM generation for accurate, source-based responses."
+        "This RAG system uses ArXiv papers about exoplanets to answer your questions. Default model is Gemma3:1b which is a very lightweight LLM."
     )
 
 
@@ -116,7 +115,7 @@ st.title("🪐 Exoplanet RAG")
 # Query input
 query = st.text_area(
     "Ask a question about exoplanets:", 
-    placeholder="e.g., What are hot Jupiters? How are exoplanets detected?"
+    placeholder="e.g., What are sub Neptunes? What is an atmospheric retrieval?"
 )
 
 col1, col2 = st.columns([1, 5])
@@ -155,10 +154,8 @@ else:
         
         st.markdown("### Example Questions")
         st.markdown("Once initialized, you can ask questions like:")
-        st.markdown("- What are hot Jupiters?")
-        st.markdown("- How are exoplanets detected?")  
-        st.markdown("- What is the habitable zone?")
-        st.markdown("- What methods are used for exoplanet characterization?")
+        st.markdown("- What are sub Neptunes?")
+        st.markdown("- What is an atmospheric retrieval?")
     else:
         st.info(
             "Enter a question about exoplanets in the text area above and click **'Submit'**."
@@ -169,5 +166,5 @@ else:
 st.markdown("---")
 st.markdown(
     "*This application uses Retrieval Augmented Generation (RAG) to answer questions about exoplanets "
-    "using scientific papers from ArXiv. All processing is done locally.*"
+    "using scientific papers from ArXiv.*"
 )
