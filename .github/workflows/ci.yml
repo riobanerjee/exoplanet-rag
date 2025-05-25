@@ -16,6 +16,21 @@ jobs:
       with:
         python-version: '3.11'
     
+    - name: Free up disk space
+      run: |
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+        sudo rm -rf /tmp/*
+        docker system prune --all --force --volumes
+
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
     - name: Install deps
       run: |
         pip install -r requirements.txt
